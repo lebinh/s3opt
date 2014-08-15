@@ -57,7 +57,7 @@ class Pipeline(object):
             analyser.finish()
 
     def analyse_key(self, key):
-        key = key.bucket.get_key(key.key)
         for pattern, analyser in self._pipeline:
             if pattern.match(key.key):
+                key = key.bucket.get_key(key.key)
                 analyser.analyse(key, dry_run=self.dry_run)
