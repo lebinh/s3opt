@@ -87,15 +87,15 @@ class CacheControlAnalyser(Analyser):
 
     def verify(self, key):
         if key.cache_control != self.cache_control:
-            if key.get_redirect() is None:
-                logging.info('Insufficient Cache-Control header set for %s: "%s", should be: "%s"',
-                             key.key, key.cache_control, self.cache_control)
-                return False
+            logging.info('Insufficient Cache-Control header set for %s: "%s", should be: "%s"',
+                         key.key, key.cache_control, self.cache_control)
+            return False
         return True
 
     def optimise(self, key):
-        self.log('Changing Cache-Control header of "%s" to "%s"', key, self.cache_control)
-        util.change_key_metadata(key, 'Cache-Control', self.cache_control)
+        if key.get_redirect() is None:
+            self.log('Changing Cache-Control header of "%s" to "%s"', key, self.cache_control)
+            util.change_key_metadata(key, 'Cache-Control', self.cache_control)
 
 
 class ContentTypeAnalyser(Analyser):
@@ -106,13 +106,13 @@ class ContentTypeAnalyser(Analyser):
     def verify(self, key):
         content_type, _ = mimetypes.guess_type(key.key)
         if content_type is not None and content_type != key.content_type:
-            if key.get_redirect() is None:
-                logging.info('Incorrect Content-Type header set for %s: "%s", should be: "%s"',
-                             key.key, key.content_type, content_type)
-                return False
+            logging.info('Incorrect Content-Type header set for %s: "%s", should be: "%s"',
+                         key.key, key.content_type, content_type)
+            return False
         return True
 
     def optimise(self, key):
-        content_type, _ = mimetypes.guess_type(key.key)
-        self.log('Changing Content-Type header of "%s" to be "%s"', key, content_type)
-        util.change_key_metadata(key, 'Content-Type', content_type)
+        if key.get_redirect() is None:
+            content_type, _ = mimetypes.guess_type(key.key)
+            self.log('Changing Content-Type header of "%s" to be "%s"', key, content_type)
+            util.change_key_metadata(key, 'Content-Type', content_type)

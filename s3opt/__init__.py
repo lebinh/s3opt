@@ -21,7 +21,6 @@ Options:
 """
 import logging
 
-import boto
 import docopt
 
 from s3opt.pipeline import Pipeline
@@ -32,7 +31,7 @@ __author__ = 'binhle'
 
 
 def init_pipeline(args):
-    pipe = Pipeline(dry_run=args['--dry-run'])
+    pipe = Pipeline(access_key=args['--access-key'], secret_key=args['--secret-key'], dry_run=args['--dry-run'])
     if not args['--no-content-type-check']:
         pipe.append(ContentTypeAnalyser('Content Type'), ".*")
 
@@ -42,21 +41,16 @@ def init_pipeline(args):
         extra = 'private' if args['--cache-private'] else 'public'
         pipe.append(CacheControlAnalyser('Images Caching', image_max_age, extra=extra), '.*\.(jpe?g|png|gif)$')
         pipe.append(CacheControlAnalyser('Text Caching', text_max_age, extra=extra), '.*\.(html?|css|js|json)$')
+
     return pipe
 
 
 def select_targets(args):
-    if args['--access-key'] is not None and args['--secret-key'] is not None:
-        conn = boto.connect_s3(aws_access_key_id=args['--access-key'], aws_secret_access_key=args['--secret-key'])
-    else:
-        conn = boto.connect_s3()
-
     for bucket in args['<bucket/prefix>']:
         if '/' in bucket:
             bucket, prefix = bucket.split('/', 1)
         else:
             prefix = ''
-        bucket = conn.get_bucket(bucket)
         yield bucket, prefix
 
 
