@@ -80,7 +80,7 @@ class CacheControlAnalyser(Analyser):
         super(CacheControlAnalyser, self).__init__(name)
 
         self.cache_control = '%s, ' % extra if extra is not None else ''
-        if max_age < 0:
+        if max_age <= 0:
             self.cache_control += 'no-cache'
         else:
             self.cache_control += 'max-age=%d' % max_age

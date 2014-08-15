@@ -39,8 +39,10 @@ def init_pipeline(args):
         image_max_age = int(args['--image-max-age'])
         text_max_age = int(args['--text-max-age'])
         extra = 'private' if args['--cache-private'] else 'public'
-        pipe.append(CacheControlAnalyser('Images Caching', image_max_age, extra=extra), '.*\.(jpe?g|png|gif)$')
-        pipe.append(CacheControlAnalyser('Text Caching', text_max_age, extra=extra), '.*\.(html?|css|js|json)$')
+        if image_max_age >= 0:
+            pipe.append(CacheControlAnalyser('Images Caching', image_max_age, extra=extra), '.*\.(jpe?g|png|gif)$')
+        if text_max_age >= 0:
+            pipe.append(CacheControlAnalyser('Text Caching', text_max_age, extra=extra), '.*\.(html?|css|js|json)$')
 
     return pipe
 
