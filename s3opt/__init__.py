@@ -24,7 +24,7 @@ import logging
 import docopt
 
 from s3opt.pipeline import Pipeline
-from s3opt.analyser import ContentTypeAnalyser, CacheControlAnalyser
+from s3opt.analyser import ContentTypeAnalyser, CacheControlAnalyser, JpegOptimiser, PngOptimiser
 
 
 __author__ = 'binhle'
@@ -43,6 +43,9 @@ def init_pipeline(args):
             pipe.append(CacheControlAnalyser('Images Caching', image_max_age, extra=extra), '.*\.(jpe?g|png|gif)$')
         if text_max_age >= 0:
             pipe.append(CacheControlAnalyser('Text Caching', text_max_age, extra=extra), '.*\.(html?|css|js|json)$')
+
+    pipe.append(JpegOptimiser('JPEG optimise'), '.*\.jpe?g$')
+    pipe.append(PngOptimiser('PNG optimise'), '.*\.png$')
 
     return pipe
 

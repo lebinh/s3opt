@@ -5,7 +5,6 @@ import threading
 import logging
 
 import boto
-
 from clint.textui import progress
 
 from s3opt.analyser import DecoratorAnalyser
@@ -51,7 +50,7 @@ class Pipeline(object):
 
     def get_bucket(self, name):
         if getattr(self.thread_local_buckets, name, None) is None:
-            logging.info('Create new connection to S3 from thread %s', threading.currentThread())
+            logging.debug('Create new connection to S3 from thread %s', threading.currentThread())
             conn = self.connect_s3()
             bucket = conn.get_bucket(name)
             setattr(self.thread_local_buckets, name, bucket)
