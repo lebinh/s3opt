@@ -4,7 +4,6 @@ import mimetypes
 from gzip import GzipFile
 
 from cStringIO import StringIO
-
 from clint.textui import colored
 
 from s3opt import util
@@ -46,13 +45,13 @@ class Analyser(object):
     def finish(self):
         if self.problematic > 0:
             if self.changed > 0:
-                self.warn('CHANGED: %d out of %d objects (%.2f) changed', self.changed, self.total,
-                          100 * self.changed / self.total)
+                self.warn('CHANGED: %d out of %d objects changed (%.2f%%).',
+                          self.changed, self.total, 100 * self.changed / self.total)
             else:
-                self.error('PROBLEM: %d out of %d (%.2f %%) objects are problematic',
+                self.error('PROBLEM: %d out of %d objects are problematic (%.2f%%).',
                            self.problematic, self.total, 100 * self.problematic / self.total)
         else:
-            self.good('GOOD: all %d objects are ok', self.total)
+            self.good('GOOD: all %d objects are ok.', self.total)
 
     def info(self, msg, *args):
         logging.info('[%s] %s' % (self.name, msg), *args)
@@ -151,7 +150,7 @@ class ContentOptimiser(Analyser):
         self.total += 1
         original_content = get_key_content(key)
         optimised_content = self.optimise_content(key, original_content)
-        if not self.verify_content(key, original_content, optimised_content):
+        if optimised_content and not self.verify_content(key, original_content, optimised_content):
             self.problematic += 1
             if not dry_run:
                 self.warn('Changing content of "%s" to optimised version' % key)
@@ -165,30 +164,46 @@ class ContentOptimiser(Analyser):
         raise NotImplementedError
 
 
-class ExternalCommandOptimiser(ContentOptimiser):
-    external_cmd_args = ['jpegoptim', '--strip-all', '--quiet', '--all-progressive']
+class ContentSizeOptimiser(ContentOptimiser):
     min_compression_save = 1000
     min_compression_save_percentage = 10
-    temp_file_suffix = ''
 
-    def optimise_content(self, key, content):
-        return util.optimise_external(content, self.external_cmd_args, temp_file_suffix=self.temp_file_suffix)
+    _total_size = 0
+    _total_saved = 0
 
     def verify_content(self, key, original_content, optimised_content):
+        self._total_size += len(original_content)
         save = len(original_content) - len(optimised_content)
         save_percentage = save / len(original_content) * 100
         if save > self.min_compression_save or save_percentage > self.min_compression_save_percentage:
-            self.info('Optimise "%s" could save %s (%.2f %%)', key.key, util.humanize(save),
+            self.info('Optimise "%s" could save %s (%.2f%% reduction)', key.key, util.humanize(save),
                       save_percentage)
+            self._total_saved += save
             return False
         return True
 
+    def finish(self):
+        if self.problematic > 0:
+            if self.changed > 0:
+                self.warn('CHANGED: %d out of %d objects changed, saved %s (%.2f%% reduction).',
+                          self.changed, self.total, util.humanize(self._total_saved),
+                          self._total_saved / self._total_size * 100)
+            else:
+                self.error('PROBLEM: %d out of %d objects can be optimized to save %s (%.2f%% reduction).',
+                           self.problematic, self.total, util.humanize(self._total_saved),
+                           self._total_saved / self._total_size * 100)
+        else:
+            self.good('GOOD: all %d objects are ok.', self.total)
 
-class JpegOptimiser(ExternalCommandOptimiser):
-    external_cmd_args = ['jpegoptim', '--quiet', '--strip-all', '--all-progressive']
-    temp_file_suffix = '.jpg'
+
+class JpegOptimiser(ContentSizeOptimiser):
+    def optimise_content(self, key, content):
+        cmd_args = ['jpegoptim', '--quiet', '--strip-all', '--all-progressive']
+        return util.optimise_external(content, cmd_args, temp_file_suffix='.jpg')
 
 
-class PngOptimiser(ExternalCommandOptimiser):
-    external_cmd_args = ['optipng', '--quiet', '-strip', 'all', '-o6']
-    temp_file_suffix = '.png'
+class PngOptimiser(ContentSizeOptimiser):
+    def optimise_content(self, key, content):
+        cmd_args = ['optipng', '-quiet', '-strip', 'all']
+        return util.optimise_external(content, cmd_args, temp_file_suffix='.png')
+

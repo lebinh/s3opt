@@ -1,3 +1,4 @@
+from __future__ import division
 import os
 import subprocess
 from subprocess import CalledProcessError
@@ -24,7 +25,7 @@ def change_key_metadata(key, meta_key, meta_value):
 
 
 def optimise_external(content, cmd_args, temp_file_suffix):
-    with NamedTemporaryFile(suffix=temp_file_suffix, delete=False) as tmp:
+    with NamedTemporaryFile(suffix=temp_file_suffix) as tmp:
         tmp.write(content)
         tmp.flush()
         os.fsync(tmp)
@@ -35,7 +36,7 @@ def optimise_external(content, cmd_args, temp_file_suffix):
             subprocess.check_call(args)
         except CalledProcessError:
             logging.exception('Error when running external optimiser command')
-            return content
+            return None
         with open(tmp.name, 'rb') as result:
             return result.read()
 
