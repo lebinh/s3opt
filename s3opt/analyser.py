@@ -130,6 +130,10 @@ class ContentOptimiser(Analyser):
     def analyse(self, key, dry_run=False):
         self.total += 1
         original_content = util.get_key_content(key)
+        if not original_content:
+            self.warn('Empty object: "%s"' % key.key)
+            return
+
         optimised_content = self.optimise_content(key, original_content)
         if optimised_content and not self.verify_content(key, original_content, optimised_content):
             self.problematic += 1
@@ -194,4 +198,26 @@ class PngOptimiser(ContentSizeOptimiser):
     def optimise_content(self, key, content):
         cmd_args = ['optipng', '-quiet', '-strip', 'all']
         return util.optimise_external(content, cmd_args, temp_file_suffix='.png')
+
+
+class GzipAnalyser(ContentSizeOptimiser):
+    def analyse(self, key, dry_run=False):
+        self.total += 1
+        if key.content_encoding == 'gzip':
+            return
+
+        original_content = util.get_key_content(key)
+        if not original_content:
+            self.warn('Empty object: "%s"' % key.key)
+            return
+
+        optimised_content = util.gzip(original_content)
+        if optimised_content and not self.verify_content(key, original_content, optimised_content):
+            self.problematic += 1
+            if not dry_run:
+                self.warn('Gzip content of "%s"' % key)
+                # set content_encoding to 'gzip' and util.set_key_content with gzip the original content automatically
+                key.content_encoding = 'gzip'
+                util.set_key_content(key, original_content)
+                self.changed += 1
 

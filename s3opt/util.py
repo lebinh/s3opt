@@ -6,7 +6,10 @@ from subprocess import CalledProcessError
 from tempfile import NamedTemporaryFile
 import logging
 
-from cStringIO import StringIO
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from io import BytesIO as StringIO
 
 
 __author__ = 'binhle'
@@ -33,15 +36,26 @@ def change_key_metadata(key, meta_key, meta_value):
     return key.copy(key.bucket.name, key.key, metadata=meta, preserve_acl=True)
 
 
+def gzip(uncompressed_data):
+    sio = StringIO()
+    with GzipFile(fileobj=sio, mode='wb') as gzip:
+        gzip.write(uncompressed_data)
+    return sio.getvalue()
+
+
+def gunzip(compressed_data):
+    sio = StringIO(compressed_data)
+    with GzipFile(fileobj=sio) as gzip:
+        return gzip.read()
+
+
 def get_key_content(key):
     """
     Get content of given key, auto unzip on the fly if its Content-Encoding is 'gzip'.
     """
     content = key.get_contents_as_string()
     if key.content_encoding == 'gzip':
-        sio = StringIO(content)
-        with GzipFile(fileobj=sio) as gzip:
-            return gzip.read()
+        return gunzip(content)
     return content
 
 
@@ -53,10 +67,7 @@ def set_key_content(key, content):
     acl_xml = key.get_xml_acl()
     metadata = get_all_metadata(key)
     if key.content_encoding == 'gzip':
-        sio = StringIO()
-        with GzipFile(fileobj=sio, mode='wb') as gzip:
-            gzip.write(content)
-        content = sio.getvalue()
+        content = gzip(content)
     key.set_contents_from_string(content, headers=metadata)
     key.set_xml_acl(acl_xml)
 

@@ -27,13 +27,16 @@ Image compression options:
     --no-optimise-image  Disable optimising JPEG and PNG images
     -m, --max-quality <quality>  Set max quality used for compress JPEG images (< 100 means lossy compression)
                                 [default: 100]
+
+Gzip compression options:
+    --gzip  Enable gzip of text content
 """
 import logging
 
 import docopt
 
 from s3opt.pipeline import Pipeline
-from s3opt.analyser import ContentTypeAnalyser, CacheControlAnalyser, JpegOptimiser, PngOptimiser
+from s3opt.analyser import ContentTypeAnalyser, CacheControlAnalyser, JpegOptimiser, PngOptimiser, GzipAnalyser
 
 
 __author__ = 'binhle'
@@ -43,8 +46,12 @@ def init_pipeline(args):
     pipe = Pipeline(access_key=args['--access-key'], secret_key=args['--secret-key'], dry_run=args['--dry-run'])
 
     if not args['--no-optimise-image']:
-        pipe.append(JpegOptimiser('JPEG optimise', max_quality=args['--max-quality']), '.*\.jpe?g$')
+        max_quality = int(args['--max-quality'])
+        pipe.append(JpegOptimiser('JPEG optimise', max_quality=max_quality), '.*\.jpe?g$')
         pipe.append(PngOptimiser('PNG optimise'), '.*\.png$')
+
+    if args['--gzip']:
+        pipe.append(GzipAnalyser('Gzip'), '.*\.(html?|css|js|json)$')
 
     if not args['--no-content-type-check']:
         pipe.append(ContentTypeAnalyser('Content Type'), ".*")
