@@ -10,14 +10,23 @@ Sample:
 Options:
     --access-key <access key>  AWS access key
     --secret-key <secret key>  AWS secret key
-    -d, --dry-run
+    -d, --dry-run  Only check and print result without modify anything
+    -v, --verbose  Verbose logging
+    --debug  Debug mode
+
+Content-Type header checking
+    --no-content-type-check  Disable Content-Type check and optimization
+
+Caching options:
+    --no-cache-control-check  Disable Cache-Control check and optimization
     -i, --image-max-age <seconds>  Cache-Control max-age value for image files (jpg/png/gif) [default: 604800]
     -t, --text-max-age <seconds>  Cache-Control max-age value for text files (html/css/js) [default: 86400]
     -p, --cache-private  Set Cache-Control: private instead of public
-    --no-cache-control-check  Disable Cache-Control check and optimization
-    --no-content-type-check  Disable Content-Type check and optimization
-    -v, --verbose  Verbose logging
-    --debug  Debug mode
+
+Image compression options:
+    --no-optimise-image  Disable optimising JPEG and PNG images
+    -m, --max-quality <quality>  Set max quality used for compress JPEG images (< 100 means lossy compression)
+                                [default: 100]
 """
 import logging
 
@@ -32,6 +41,11 @@ __author__ = 'binhle'
 
 def init_pipeline(args):
     pipe = Pipeline(access_key=args['--access-key'], secret_key=args['--secret-key'], dry_run=args['--dry-run'])
+
+    if not args['--no-optimise-image']:
+        pipe.append(JpegOptimiser('JPEG optimise', max_quality=args['--max-quality']), '.*\.jpe?g$')
+        pipe.append(PngOptimiser('PNG optimise'), '.*\.png$')
+
     if not args['--no-content-type-check']:
         pipe.append(ContentTypeAnalyser('Content Type'), ".*")
 
@@ -43,9 +57,6 @@ def init_pipeline(args):
             pipe.append(CacheControlAnalyser('Images Caching', image_max_age, extra=extra), '.*\.(jpe?g|png|gif)$')
         if text_max_age >= 0:
             pipe.append(CacheControlAnalyser('Text Caching', text_max_age, extra=extra), '.*\.(html?|css|js|json)$')
-
-    pipe.append(JpegOptimiser('JPEG optimise'), '.*\.jpe?g$')
-    pipe.append(PngOptimiser('PNG optimise'), '.*\.png$')
 
     return pipe
 

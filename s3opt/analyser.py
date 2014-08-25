@@ -1,9 +1,7 @@
 from __future__ import division
 import logging
 import mimetypes
-from gzip import GzipFile
 
-from cStringIO import StringIO
 from clint.textui import colored
 
 from s3opt import util
@@ -128,33 +126,16 @@ class ContentTypeAnalyser(Analyser):
         util.change_key_metadata(key, 'Content-Type', content_type)
 
 
-def get_key_content(key):
-    content = key.get_contents_as_string()
-    if key.content_encoding == 'gzip':
-        sio = StringIO(content)
-        with GzipFile(fileobj=sio) as gzip:
-            return gzip.read()
-    return content
-
-
-def set_key_content(key, content):
-    if key.content_encoding == 'gzip':
-        sio = StringIO(content)
-        with GzipFile(fileobj=sio) as gzip:
-            return key.set_contents_from_string(gzip.read())
-    return key.set_contents_from_string(content)
-
-
 class ContentOptimiser(Analyser):
     def analyse(self, key, dry_run=False):
         self.total += 1
-        original_content = get_key_content(key)
+        original_content = util.get_key_content(key)
         optimised_content = self.optimise_content(key, original_content)
         if optimised_content and not self.verify_content(key, original_content, optimised_content):
             self.problematic += 1
             if not dry_run:
                 self.warn('Changing content of "%s" to optimised version' % key)
-                set_key_content(key, optimised_content)
+                util.set_key_content(key, optimised_content)
                 self.changed += 1
 
     def optimise_content(self, key, content):
@@ -197,8 +178,15 @@ class ContentSizeOptimiser(ContentOptimiser):
 
 
 class JpegOptimiser(ContentSizeOptimiser):
+    def __init__(self, name, max_quality=100):
+        super(JpegOptimiser, self).__init__(name)
+        self.max_quality = max_quality
+
     def optimise_content(self, key, content):
         cmd_args = ['jpegoptim', '--quiet', '--strip-all', '--all-progressive']
+        if self.max_quality < 100:
+            # lossy compress image
+            cmd_args.append('--max=%d' % self.max_quality)
         return util.optimise_external(content, cmd_args, temp_file_suffix='.jpg')
 
 
