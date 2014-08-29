@@ -20,7 +20,7 @@ Content-Type header checking
 Caching options:
     --no-cache-control-check  Disable Cache-Control check and optimization
     -i, --image-max-age <seconds>  Cache-Control max-age value for image files (jpg/png/gif) [default: 604800]
-    -t, --text-max-age <seconds>  Cache-Control max-age value for text files (html/css/js) [default: 86400]
+    -t, --text-max-age <seconds>  Cache-Control max-age value for text files (html/css/js) [default: 604800]
     -p, --cache-private  Set Cache-Control: private instead of public
 
 Image compression options:
@@ -51,7 +51,7 @@ def init_pipeline(args):
         pipe.append(PngOptimiser('PNG optimise'), '.*\.png$')
 
     if args['--gzip']:
-        pipe.append(GzipAnalyser('Gzip'), '.*\.(html?|css|js|json)$')
+        pipe.append(GzipAnalyser('Gzip'), '.*\.(html?|css|js)$')
 
     if not args['--no-content-type-check']:
         pipe.append(ContentTypeAnalyser('Content Type'), ".*")
@@ -63,7 +63,7 @@ def init_pipeline(args):
         if image_max_age >= 0:
             pipe.append(CacheControlAnalyser('Images Caching', image_max_age, extra=extra), '.*\.(jpe?g|png|gif)$')
         if text_max_age >= 0:
-            pipe.append(CacheControlAnalyser('Text Caching', text_max_age, extra=extra), '.*\.(html?|css|js|json)$')
+            pipe.append(CacheControlAnalyser('Text Caching', text_max_age, extra=extra), '.*\.(html?|css|js)$')
 
     return pipe
 
